@@ -1,0 +1,90 @@
+# infra/terraform/Justfile — Cloudflare IaC operations
+#
+# Reads .env via dotenv-load (TF_VAR_cloudflare_api_token etc.).
+# Run from `infra/terraform/` or via `just -f infra/terraform/Justfile <recipe>`.
+
+set shell := ["bash", "-cu"]
+set dotenv-load := true
+set dotenv-filename := ".env"
+
+# Default: list all recipes
+default:
+    @just --list
+
+# Render System Prompt template (instance.config.yaml -> system-prompt.v2.1.md)
+# `terraform apply` の prerequisite。bootstrap でも自動実行。
+build-prompt version="v2.1":
+    cd ../../scripts && bun install --silent
+    cd ../.. && bun run scripts/build-prompt.ts --version {{version}}
+
+# Initialize provider plugins
+init:
+    terraform init
+
+# Show pending changes
+plan:
+    terraform plan -out=tfplan
+
+# Apply the previously-saved plan
+apply:
+    terraform apply tfplan
+
+# Initial bootstrap: build SP + init + plan + apply (no confirmation prompt)
+bootstrap: build-prompt
+    terraform init
+    terraform plan -out=tfplan
+    terraform apply tfplan
+    @echo ""
+    @echo "✅ Bootstrap complete. Next: 'just sync-secrets'"
+
+# Destroy all managed resources
+destroy:
+    terraform destroy
+
+# Sync TF outputs to Worker secret + repo .env
+# - AI_SEARCH_API_TOKEN -> wrangler secret put (uses TF_VAR_cloudflare_api_token from .env)
+# - CF_ACCESS_CLIENT_ID/SECRET / AI_SEARCH_INSTANCE_UUID -> repo root .env (idempotent)
+sync-secrets:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # AI_SEARCH_API_TOKEN: TF_VAR_cloudflare_api_token を流用
+    if [[ -z "${TF_VAR_cloudflare_api_token:-}" ]]; then
+      echo "ERROR: TF_VAR_cloudflare_api_token not set in .env" >&2
+      exit 1
+    fi
+
+    INSTANCE_UUID=$(terraform output -raw ai_search_instance_uuid)
+    CID=$(terraform output -raw service_token_client_id)
+    CSEC=$(terraform output -raw service_token_client_secret)
+
+    # 1. Worker secret update (cd to worker dir for wrangler)
+    pushd ../../worker > /dev/null
+    echo "$TF_VAR_cloudflare_api_token" | wrangler secret put AI_SEARCH_API_TOKEN
+    popd > /dev/null
+
+    # 2. Repo .env update (idempotent: drop existing managed keys, append new values)
+    pushd ../.. > /dev/null
+    ROOT_ENV=".env"
+    touch "$ROOT_ENV"
+    grep -v -E "^(CF_ACCESS_CLIENT_ID|CF_ACCESS_CLIENT_SECRET|AI_SEARCH_INSTANCE_UUID)=" "$ROOT_ENV" > "$ROOT_ENV.tmp" || true
+    mv "$ROOT_ENV.tmp" "$ROOT_ENV"
+    {
+      echo "CF_ACCESS_CLIENT_ID=$CID"
+      echo "CF_ACCESS_CLIENT_SECRET=$CSEC"
+      echo "AI_SEARCH_INSTANCE_UUID=$INSTANCE_UUID"
+    } >> "$ROOT_ENV"
+    popd > /dev/null
+
+    echo ""
+    echo "✅ Worker secret + repo .env updated."
+    echo "   Next: update worker/wrangler.toml AI_SEARCH_INSTANCE = \"$INSTANCE_UUID\""
+    echo "         then: cd worker && wrangler deploy"
+
+# Show current outputs (sensitive values redacted by terraform CLI)
+outputs:
+    terraform output
+
+# Show specific output value (use carefully — sensitive values printed)
+show-output name:
+    terraform output -raw {{name}}

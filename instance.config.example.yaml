@@ -1,0 +1,37 @@
+# instance.config.example.yaml — テンプレ利用者向けサンプル
+# 使い方: cp instance.config.example.yaml instance.config.yaml して値を書き換え
+# secrets はここには絶対入れない（.env と infra/terraform/terraform.tfvars 側で管理）
+
+# === L1: インフラ命名 ===
+infra:
+  prefix: my-aisearch-poc                              # 全 Cloudflare resource の prefix
+  cloudflare_account_id: <YOUR_CLOUDFLARE_ACCOUNT_ID>  # ダッシュボード右上 or `wrangler whoami`
+  workers_dev_subdomain: <YOUR_WORKERS_DEV_SUBDOMAIN>  # *.workers.dev のサブドメイン
+  otp_email_domain: example.com                        # OTP IdP 許可ドメイン
+  operator_email: you@example.com                      # catchall Access app の許可 user
+
+# === L6: UI 文字列 ===
+ui:
+  page_title: "My AI Search PoC"
+
+# === L2 + L3: 組織 / ドメイン定義（SP テンプレと corpus 両方が参照） ===
+org:
+  name: "My Organization"
+  short_name: "MyOrg"
+
+# corpus の分類軸 + SP の domain mapping table の単一定義
+domains:
+  - id: docs
+    label: "ドキュメント全般"
+    primary_repos: [my-repo]
+
+# SP rule 4「絶対 NG パターン」のうち instance 固有部分（適用対象が無い場合は空 list で OK）
+sp_extras:
+  brand_names_to_deprioritize: []
+  noisy_path_examples: []
+
+# === L4: eval ===
+eval:
+  questions_files:
+    - docs/context/eval/questions.yaml
+  default: docs/context/eval/questions.yaml
