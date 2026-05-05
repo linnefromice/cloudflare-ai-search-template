@@ -1,0 +1,17 @@
+{
+  "name": "cloudflare-ai-search-template-scripts",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint:domain-enum": "bun run lint-domain-enum.ts",
+    "build:prompt": "bun run build-prompt.ts",
+    "build:prompt:check": "bun run build-prompt.ts --check"
+  },
+  "dependencies": {
+    "mustache": "^4.2.0",
+    "yaml": "^2.5.1"
+  },
+  "devDependencies": {
+    "@types/mustache": "^4.2.6"
+  }
+}

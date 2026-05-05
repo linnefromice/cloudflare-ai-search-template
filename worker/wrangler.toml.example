@@ -1,0 +1,30 @@
+# Worker proxy 設定 (template)
+#
+# Usage:
+#   cp wrangler.toml.example wrangler.toml
+#   # 以下の placeholder を terraform output / instance.config.yaml の値で書換
+#   wrangler deploy
+#
+# `name` と `account_id` は instance.config.yaml の `infra.prefix` と
+# `infra.cloudflare_account_id` に揃える (deploy 後 Cloudflare 側で resolve)。
+# UUID 系は `terraform output ai_search_instance_uuid` で取得。
+
+name = "<YOUR_PREFIX>"
+main = "src/index.ts"
+compatibility_date = "2026-04-27"
+account_id = "<YOUR_CLOUDFLARE_ACCOUNT_ID>"
+
+[vars]
+# UUID は Public Endpoint hostname 用 (Snippets script asset / /mcp pass-through で利用)
+# `just sync-secrets` 後に `terraform output ai_search_instance_uuid` の値で更新
+AI_SEARCH_INSTANCE = "<YOUR_AI_SEARCH_INSTANCE_UUID>"
+
+# UI 文字列。instance.config.yaml ui.page_title と同期 (手動)
+PAGE_TITLE = "AI Search PoC"
+
+# REST API (Bearer auth) で /chat/completions と /search を叩くため
+AI_SEARCH_INSTANCE_NAME = "<YOUR_PREFIX>-instance"
+AI_SEARCH_ACCOUNT_ID = "<YOUR_CLOUDFLARE_ACCOUNT_ID>"
+
+# AI_SEARCH_API_TOKEN は secret で `wrangler secret put AI_SEARCH_API_TOKEN` で投入
+# (`just sync-secrets` で TF_VAR_cloudflare_api_token から自動投入される)

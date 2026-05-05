@@ -1,0 +1,20 @@
+# Terraform state
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
+crash.*.log
+
+# Provider plugins, modules cache
+.terraform/
+.terraform.lock.hcl
+
+# Plan files
+*.tfplan
+tfplan
+
+# Local environment overrides
+.env
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
